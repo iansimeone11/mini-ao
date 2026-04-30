@@ -1041,6 +1041,12 @@ function sendChat() {
       return;
     }
 
+    if (text.toLowerCase() === "/salir") {
+      closeChat();
+      returnToCharacterMenu(`${state.characterName} salio del mundo.`);
+      return;
+    }
+
     state.chatBubble = {
       text: text.slice(0, 80),
       createdAt: performance.now(),

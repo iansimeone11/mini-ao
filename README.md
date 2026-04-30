@@ -27,6 +27,6 @@ http://localhost:3000/
 
 ## Deploy
 
-El juego puede subirse a GitHub y luego importarse en Vercel como proyecto web.
+El juego puede subirse a GitHub y luego importarse en Vercel como proyecto estatico.
 
 Nota: el multiplayer actual sirve para pruebas locales. Para multiplayer online real en Vercel hace falta agregar un servicio realtime externo o un backend con WebSockets.
