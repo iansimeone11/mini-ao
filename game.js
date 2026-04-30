@@ -467,6 +467,16 @@ function showGoldPopup(amount) {
 }
 
 function currentMultiplayerState() {
+  const now = performance.now();
+  const chatBubble =
+    state.chatBubble && now - state.chatBubble.createdAt <= state.chatBubble.life
+      ? {
+          text: state.chatBubble.text,
+          age: now - state.chatBubble.createdAt,
+          life: state.chatBubble.life,
+        }
+      : null;
+
   return {
     id: multiplayer.id,
     name: state.characterName,
@@ -476,8 +486,9 @@ function currentMultiplayerState() {
     facing: player.facing,
     inBoat: state.inBoat,
     meditating: state.meditating,
+    chatBubble,
     equippedWeapon: state.equippedWeapon,
-    updatedAt: performance.now(),
+    updatedAt: now,
   };
 }
 
@@ -2070,6 +2081,27 @@ function drawRemoteBoat(other) {
   drawRemoteName(other.name, other.x + 12, other.y + 42);
 }
 
+function drawRemoteMeditationSmoke(other, now) {
+  if (!other.meditating) return;
+  const cx = other.x + 12;
+  const baseY = other.y + 7;
+
+  ctx.save();
+  for (let i = 0; i < 6; i += 1) {
+    const phase = ((now / 900 + i * 0.2) % 1);
+    const drift = Math.sin(now / 260 + i * 1.7) * 9;
+    const x = cx + drift + (i - 2.5) * 2;
+    const y = baseY - phase * 38;
+    const size = 4 + phase * 8 + (i % 2) * 2;
+    const alpha = 0.42 * (1 - phase);
+    ctx.fillStyle = `rgba(184, 221, 255, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawRemoteName(name, x, y) {
   ctx.font = "13px Trebuchet MS, Verdana, sans-serif";
   ctx.textAlign = "center";
@@ -2082,46 +2114,15 @@ function drawRemoteName(name, x, y) {
   ctx.textAlign = "start";
 }
 
-function drawRemotePlayers() {
-  if (!multiplayer.enabled || !state.inWorld) return;
-  for (const other of multiplayer.others.values()) {
-    if (other.mapName !== state.mapName) continue;
-    if (other.inBoat) drawRemoteBoat(other);
-    else drawRemoteCharacter(other);
-  }
-}
-
-function wrapText(text, maxWidth) {
-  const words = text.split(" ");
-  const lines = [];
-  let line = "";
-  for (const word of words) {
-    const test = line ? `${line} ${word}` : word;
-    if (ctx.measureText(test).width > maxWidth && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = test;
-    }
-  }
-  if (line) lines.push(line);
-  return lines.slice(0, 3);
-}
-
-function drawChatBubble(now) {
-  if (!state.chatBubble) return;
-
-  const age = now - state.chatBubble.createdAt;
-  const alpha = age > 3400 ? Math.max(0, 1 - (age - 3400) / 800) : 1;
-  const x = player.x + player.w / 2;
-  const y = Math.max(18, player.y - 14);
+function drawSpeechBubble(text, x, y, age, life) {
+  const alpha = age > life - 800 ? Math.max(0, 1 - (age - (life - 800)) / 800) : 1;
 
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.font = "14px Trebuchet MS, Verdana, sans-serif";
   ctx.textBaseline = "top";
 
-  const lines = wrapText(state.chatBubble.text, 190);
+  const lines = wrapText(text, 190);
   const width = Math.min(220, Math.max(...lines.map((line) => ctx.measureText(line).width)) + 20);
   const height = lines.length * 17 + 12;
   const bx = Math.max(8, Math.min(canvas.width - width - 8, x - width / 2));
@@ -2147,6 +2148,52 @@ function drawChatBubble(now) {
     ctx.fillText(line, bx + 10, by + 7 + index * 17);
   });
   ctx.restore();
+}
+
+function drawRemoteChatBubble(other, now) {
+  if (!other.chatBubble) return;
+  const age = (other.chatBubble.age || 0) + (now - (other.updatedAt || now));
+  const life = other.chatBubble.life || 4200;
+  if (age > life) return;
+  drawSpeechBubble(other.chatBubble.text, other.x + 12, Math.max(18, other.y - 14), age, life);
+}
+
+function drawRemotePlayers() {
+  if (!multiplayer.enabled || !state.inWorld) return;
+  const now = performance.now();
+  for (const other of multiplayer.others.values()) {
+    if (other.mapName !== state.mapName) continue;
+    if (other.inBoat) drawRemoteBoat(other);
+    else drawRemoteCharacter(other);
+    drawRemoteMeditationSmoke(other, now);
+    drawRemoteChatBubble(other, now);
+  }
+}
+
+function wrapText(text, maxWidth) {
+  const words = text.split(" ");
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.slice(0, 3);
+}
+
+function drawChatBubble(now) {
+  if (!state.chatBubble) return;
+
+  const age = now - state.chatBubble.createdAt;
+  const x = player.x + player.w / 2;
+  const y = Math.max(18, player.y - 14);
+  drawSpeechBubble(state.chatBubble.text, x, y, age, state.chatBubble.life);
 }
 
 function drawGoldPopup(now) {
