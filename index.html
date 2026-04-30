@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mini Argentum Pesca</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="game-panel" aria-label="Mini juego de pesca">
+        <div class="topbar">
+          <div>
+            <h1>Mini AO: Pesca</h1>
+            <p>Boton derecho sobre el agua para tirar la cana. Al entrar al agua subis a la barca.</p>
+          </div>
+          <div class="stats" aria-live="polite">
+            <span id="fishCount">Peces: 0</span>
+            <span id="goldCount">Oro: 0</span>
+            <span id="woodCount">Madera: 0</span>
+            <div class="energy-stat" aria-label="Energia">
+              <span id="energyText">Energia</span>
+              <div class="energy-bar">
+                <div id="energyFill"></div>
+              </div>
+            </div>
+            <div class="mana-stat" aria-label="Mana">
+              <span id="manaText">Mana</span>
+              <div class="mana-bar">
+                <div id="manaFill"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage-wrap">
+          <canvas id="game" width="768" height="576" aria-label="Mapa jugable"></canvas>
+          <input
+            id="chatInput"
+            class="chat-input"
+            type="text"
+            maxlength="80"
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="Mensaje de chat"
+            placeholder="Escribir mensaje..."
+          />
+          <div id="toast" class="toast" role="status" aria-live="polite">Click derecho al aguita.</div>
+          <div id="shopModal" class="shop-modal" aria-live="polite" aria-label="Tienda del vendedor">
+            <div class="shop-header">
+              <strong>&lt;Vendedor&gt;</strong>
+              <button id="closeShop" type="button">Cerrar</button>
+            </div>
+            <div class="shop-item">
+              <div>
+                <strong>Espada basica</strong>
+                <span>40 monedas de oro</span>
+              </div>
+              <button id="buySword" type="button">Comprar</button>
+            </div>
+            <p id="shopStatus">Daño equipado: puños 7-10.</p>
+          </div>
+          <div id="characterMenu" class="character-menu" aria-label="Seleccion de personaje">
+            <div class="character-card">
+              <h2>Seleccion de personaje</h2>
+              <div id="characterSlots" class="character-slots"></div>
+              <div class="character-actions">
+                <button id="enterWorld" type="button">Entrar al mundo</button>
+                <button id="createCharacter" type="button">Crear personaje</button>
+              </div>
+              <div id="creationPanel" class="creation-panel">
+                <label for="characterName">Nombre</label>
+                <div>
+                  <input id="characterName" type="text" maxlength="16" autocomplete="off" />
+                  <button id="confirmCreate" type="button">Crear</button>
+                </div>
+              </div>
+              <p id="characterStatus">Khan esta listo para entrar.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottombar">
+          <button id="backToCharacters" type="button">Personajes</button>
+          <button id="toggleBoat" type="button">Barca automatica</button>
+          <button id="resetGame" type="button">Reiniciar</button>
+          <span id="status">Enter para chatear. WASD o flechas para caminar.</span>
+        </div>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
