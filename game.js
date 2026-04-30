@@ -355,6 +355,11 @@ function renderCharacterSlots() {
       characterStatus.textContent = character ? `${character.name} esta listo para entrar.` : "Slot vacio. Crea un personaje.";
       renderCharacterSlots();
     });
+    slot.addEventListener("dblclick", () => {
+      if (!character) return;
+      selectedCharacterSlot = index;
+      enterSelectedCharacter();
+    });
     characterSlots.appendChild(slot);
   });
 }
@@ -1598,7 +1603,12 @@ function drawTile(x, y, type, now) {
 }
 
 function drawBoat() {
-  if (state.inBoat && ["up", "down"].includes(player.facing)) {
+  if (state.inBoat && player.facing === "down") {
+    drawBoatDown();
+    return;
+  }
+
+  if (state.inBoat && player.facing === "up") {
     drawVerticalBoat();
     return;
   }
@@ -1740,6 +1750,76 @@ function drawVerticalBoat() {
   ctx.fillRect(x + w / 2 - 5, y + 41, 10, 2);
   ctx.fillStyle = "#17429b";
   ctx.fillRect(x + w / 2 - 4, y + 46, 8, 4);
+}
+
+function drawBoatDown() {
+  const x = player.x - 14;
+  const y = player.y - 15;
+  const w = 52;
+  const h = 70;
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.36)";
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y + h - 12, 21, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#3a2517";
+  ctx.fillRect(x + w / 2 - 2, y + 8, 4, 43);
+  ctx.fillStyle = "#d7caa3";
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2 - 3, y + 15);
+  ctx.lineTo(x + w / 2 - 21, y + 37);
+  ctx.lineTo(x + w / 2 - 4, y + 42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.24)";
+  ctx.fillRect(x + w / 2 - 11, y + 23, 3, 12);
+
+  ctx.fillStyle = "#4b2a16";
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y + 7);
+  ctx.lineTo(x + w - 14, y + 18);
+  ctx.lineTo(x + w - 5, y + h - 18);
+  ctx.lineTo(x + w / 2, y + h - 3);
+  ctx.lineTo(x + 5, y + h - 18);
+  ctx.lineTo(x + 14, y + 18);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#b35f1f";
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y + 12);
+  ctx.lineTo(x + w - 17, y + 23);
+  ctx.lineTo(x + w - 10, y + h - 21);
+  ctx.lineTo(x + w / 2, y + h - 9);
+  ctx.lineTo(x + 10, y + h - 21);
+  ctx.lineTo(x + 17, y + 23);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#e18a2f";
+  ctx.fillRect(x + 16, y + 25, 20, 4);
+  ctx.fillRect(x + 12, y + h - 24, 28, 5);
+  ctx.fillStyle = "#6e3917";
+  ctx.fillRect(x + 9, y + h - 17, 34, 4);
+  ctx.fillStyle = "#f0ac4a";
+  ctx.fillRect(x + 15, y + h - 23, 11, 2);
+
+  ctx.fillStyle = "#6b3f28";
+  ctx.fillRect(x + w / 2 - 5, y + 34, 10, 9);
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(x + w / 2 - 8, y + 30, 16, 5);
+  ctx.fillRect(x + w / 2 - 7, y + 34, 4, 5);
+  ctx.fillRect(x + w / 2 + 4, y + 34, 4, 5);
+  ctx.fillStyle = "#101218";
+  ctx.fillRect(x + w / 2 - 4, y + 38, 3, 2);
+  ctx.fillRect(x + w / 2 + 2, y + 38, 3, 2);
+  ctx.fillStyle = "#169b3a";
+  ctx.fillRect(x + w / 2 - 8, y + 43, 16, 7);
+  ctx.fillStyle = "#ffdf00";
+  ctx.fillRect(x + w / 2 - 6, y + 44, 12, 2);
+  ctx.fillStyle = "#17429b";
+  ctx.fillRect(x + w / 2 - 5, y + 50, 10, 5);
 }
 
 function drawBoatFront() {
