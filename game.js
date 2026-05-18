@@ -40,6 +40,8 @@ const characterStatus = document.getElementById("characterStatus");
 
 const swordAsset = new Image();
 swordAsset.src = "assets/basic-sword.png";
+const fishAsset = new Image();
+fishAsset.src = "assets/fish.png";
 
 const multiplayerChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("mini-ao-local") : null;
 const multiplayer = {
@@ -265,6 +267,9 @@ const state = {
     id: null,
     dx: 0,
     dy: 0,
+    startX: 0,
+    startY: 0,
+    moved: false,
   },
   mapTitle: null,
   line: null,
@@ -449,12 +454,21 @@ function inventoryItems() {
       equipped: state.equippedWeapon === "basicSword",
     });
   }
-  if (state.equippedShield) {
+  if (state.hasSilverShield) {
     items.push({
       id: "silverShield",
       name: "Escudo de Plata",
       icon: "shield",
       equipped: state.equippedShield,
+    });
+  }
+  if (state.fish > 0) {
+    items.push({
+      id: "fish",
+      name: "Pejerrey",
+      icon: "fish",
+      quantity: state.fish,
+      equipped: false,
     });
   }
   return items;
@@ -487,14 +501,24 @@ function renderInventory() {
     const slot = document.createElement("button");
     slot.type = "button";
     slot.className = `inventory-slot${item ? " has-item" : ""}${item?.equipped ? " is-equipped" : ""}`;
-    slot.title = item ? `${item.name}${item.equipped ? " equipado" : ""}` : "Slot vacio";
+    slot.title = item
+      ? `${item.name}${item.quantity ? ` x${item.quantity}` : ""}${item.equipped ? " equipado" : ""}`
+      : "Slot vacio";
     if (item) {
       slot.dataset.item = item.id;
-      slot.innerHTML =
-        item.id === "basicSword"
-          ? `<img class="item-asset sword-asset" src="assets/basic-sword.png" alt="" />`
-          : `<span class="item-icon ${item.icon}" aria-hidden="true"></span>`;
-      slot.addEventListener("dblclick", () => toggleInventoryItem(item.id));
+      if (item.id === "basicSword") {
+        slot.innerHTML = `<img class="item-asset sword-asset" src="assets/basic-sword.png" alt="" />`;
+      } else if (item.id === "fish") {
+        slot.innerHTML = `
+          <img class="item-asset fish-asset" src="assets/fish.png" alt="" />
+          <span class="item-quantity">${item.quantity}</span>
+        `;
+      } else {
+        slot.innerHTML = `<span class="item-icon ${item.icon}" aria-hidden="true"></span>`;
+      }
+      if (item.id !== "fish") {
+        slot.addEventListener("dblclick", () => toggleInventoryItem(item.id));
+      }
     }
     inventoryGrid.appendChild(slot);
   }
@@ -819,7 +843,22 @@ function resetTouchMove() {
   state.touchMove.id = null;
   state.touchMove.dx = 0;
   state.touchMove.dy = 0;
+  state.touchMove.moved = false;
   if (touchStick) touchStick.style.transform = "translate(-50%, -50%)";
+  if (touchJoystick) touchJoystick.classList.remove("is-active");
+}
+
+function startTouchMove(event) {
+  const stageRect = stageWrap.getBoundingClientRect();
+  state.touchMove.active = true;
+  state.touchMove.id = event.pointerId;
+  state.touchMove.startX = event.clientX;
+  state.touchMove.startY = event.clientY;
+  state.touchMove.moved = false;
+  touchJoystick.style.left = `${event.clientX - stageRect.left}px`;
+  touchJoystick.style.top = `${event.clientY - stageRect.top}px`;
+  touchJoystick.classList.add("is-active");
+  updateTouchMove(event);
 }
 
 function updateTouchMove(event) {
@@ -834,6 +873,8 @@ function updateTouchMove(event) {
   const stickX = rawX * scale;
   const stickY = rawY * scale;
   const threshold = radius * 0.28;
+  const startDistance = Math.hypot(event.clientX - state.touchMove.startX, event.clientY - state.touchMove.startY);
+  if (startDistance > 10) state.touchMove.moved = true;
 
   touchStick.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
 
@@ -2847,33 +2888,35 @@ canvas.addEventListener("contextmenu", (event) => {
   handleWorldInteraction(screenToWorld(event));
 });
 
-canvas.addEventListener("pointerup", (event) => {
+canvas.addEventListener("pointerdown", (event) => {
   if (event.pointerType === "mouse") return;
   event.preventDefault();
-  handleWorldInteraction(screenToWorld(event));
+  if (!state.inWorld || state.chatting || state.interactionOpen || state.shopOpen) return;
+  canvas.setPointerCapture(event.pointerId);
+  startTouchMove(event);
 });
 
-touchJoystick.addEventListener("pointerdown", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  state.touchMove.active = true;
-  state.touchMove.id = event.pointerId;
-  touchJoystick.setPointerCapture(event.pointerId);
-  updateTouchMove(event);
-});
-
-touchJoystick.addEventListener("pointermove", (event) => {
+canvas.addEventListener("pointermove", (event) => {
+  if (event.pointerType === "mouse") return;
   if (!state.touchMove.active || state.touchMove.id !== event.pointerId) return;
   event.preventDefault();
-  event.stopPropagation();
   updateTouchMove(event);
+});
+
+canvas.addEventListener("pointerup", (event) => {
+  if (event.pointerType === "mouse") return;
+  if (!state.touchMove.active || state.touchMove.id !== event.pointerId) return;
+  event.preventDefault();
+  const wasTap = !state.touchMove.moved;
+  resetTouchMove();
+  if (wasTap) handleWorldInteraction(screenToWorld(event));
 });
 
 ["pointerup", "pointercancel", "lostpointercapture"].forEach((eventName) => {
-  touchJoystick.addEventListener(eventName, (event) => {
+  canvas.addEventListener(eventName, (event) => {
+    if (eventName === "pointerup" || event.pointerType === "mouse") return;
     if (state.touchMove.id !== null && state.touchMove.id !== event.pointerId) return;
     event.preventDefault();
-    event.stopPropagation();
     resetTouchMove();
   });
 });
