@@ -41,7 +41,7 @@ const characterStatus = document.getElementById("characterStatus");
 const swordAsset = new Image();
 swordAsset.src = "assets/basic-sword.png";
 const fishAsset = new Image();
-fishAsset.src = "assets/fish.png";
+fishAsset.src = "assets/fish-inventory.png?v=2";
 
 const multiplayerChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("mini-ao-local") : null;
 const multiplayer = {
@@ -446,6 +446,15 @@ function renderQuestPanel() {
 
 function inventoryItems() {
   const items = [];
+  if (state.fish > 0) {
+    items.push({
+      id: "fish",
+      name: "Pejerrey",
+      icon: "fish",
+      quantity: state.fish,
+      equipped: false,
+    });
+  }
   if (state.hasSword) {
     items.push({
       id: "basicSword",
@@ -460,15 +469,6 @@ function inventoryItems() {
       name: "Escudo de Plata",
       icon: "shield",
       equipped: state.equippedShield,
-    });
-  }
-  if (state.fish > 0) {
-    items.push({
-      id: "fish",
-      name: "Pejerrey",
-      icon: "fish",
-      quantity: state.fish,
-      equipped: false,
     });
   }
   return items;
@@ -510,7 +510,7 @@ function renderInventory() {
         slot.innerHTML = `<img class="item-asset sword-asset" src="assets/basic-sword.png" alt="" />`;
       } else if (item.id === "fish") {
         slot.innerHTML = `
-          <img class="item-asset fish-asset" src="assets/fish.png" alt="" />
+          <img class="item-asset fish-asset" src="assets/fish-inventory.png?v=2" alt="" />
           <span class="item-quantity">${item.quantity}</span>
         `;
       } else {
