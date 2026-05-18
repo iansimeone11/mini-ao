@@ -510,7 +510,8 @@ function renderInventory() {
         slot.innerHTML = `<img class="item-asset sword-asset" src="assets/basic-sword.png" alt="" />`;
       } else if (item.id === "fish") {
         slot.innerHTML = `
-          <img class="item-asset fish-asset" src="assets/fish-inventory.png?v=2" alt="" />
+          <span class="item-icon fish-fallback" aria-hidden="true"></span>
+          <img class="item-asset fish-asset" src="assets/fish-inventory.png?v=2" alt="" onerror="this.style.display='none'" />
           <span class="item-quantity">${item.quantity}</span>
         `;
       } else {
