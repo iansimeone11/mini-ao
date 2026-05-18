@@ -120,8 +120,6 @@ const server = http.createServer(async (req, res) => {
               }
             : null,
         equippedWeapon: String(player.equippedWeapon || "fists"),
-        hasSilverShield: Boolean(player.hasSilverShield),
-        defense: Number(player.defense) || 0,
         updatedAt: Date.now(),
       });
       sendJson(res, { ok: true });

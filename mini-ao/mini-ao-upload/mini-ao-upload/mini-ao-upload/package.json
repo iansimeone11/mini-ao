@@ -1,0 +1,11 @@
+{
+  "name": "mini-ao-coghlan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mini juego 2D inspirado en AO con pesca, tala, combate y multiplayer local.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "check": "node --check game.js && node --check server.js"
+  }
+}

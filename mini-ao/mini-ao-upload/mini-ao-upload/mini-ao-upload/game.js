@@ -5,7 +5,6 @@ const stageWrap = document.querySelector(".stage-wrap");
 const fishCount = document.getElementById("fishCount");
 const goldCount = document.getElementById("goldCount");
 const woodCount = document.getElementById("woodCount");
-const defenseCount = document.getElementById("defenseCount");
 const energyText = document.getElementById("energyText");
 const energyFill = document.getElementById("energyFill");
 const manaText = document.getElementById("manaText");
@@ -201,14 +200,6 @@ const vendorNpc = {
   name: "<Vendedor>",
 };
 
-const adventurerNpc = {
-  x: 7 * TILE + 12,
-  y: 7 * TILE + 6,
-  w: 24,
-  h: 34,
-  name: "Vholius",
-};
-
 const state = {
   inWorld: false,
   characterName: "Khan",
@@ -218,16 +209,7 @@ const state = {
   energy: MAX_ENERGY,
   mana: 35,
   hasSword: false,
-  hasSilverShield: false,
-  defense: 0,
   equippedWeapon: "fists",
-  quest: {
-    coghlanCreatures: {
-      status: "inactive",
-      kills: 0,
-      required: 10,
-    },
-  },
   shopOpen: false,
   mapName: "river",
   inBoat: false,
@@ -315,7 +297,7 @@ function canMoveTo(x, y) {
   ];
   const hitsNpc = points.some(([px, py]) => {
     if (state.mapName !== "river") return false;
-    return [fisherNpc, lumberjackNpc, vendorNpc, adventurerNpc].some((npc) => {
+    return [fisherNpc, lumberjackNpc, vendorNpc].some((npc) => {
       return px >= npc.x - 4 && px <= npc.x + npc.w + 4 && py >= npc.y && py <= npc.y + npc.h + 4;
     });
   });
@@ -345,7 +327,6 @@ function updateStats() {
   fishCount.textContent = `Peces: ${state.fish}`;
   goldCount.textContent = `Oro: ${state.gold}`;
   woodCount.textContent = `Madera: ${state.wood}`;
-  defenseCount.textContent = `Defensa: ${state.defense}`;
   const energy = Math.round(state.energy);
   energyText.textContent = `Energia: ${energy}`;
   energyFill.style.width = `${energy}%`;
@@ -486,16 +467,6 @@ function showGoldPopup(amount) {
 }
 
 function currentMultiplayerState() {
-  const now = performance.now();
-  const chatBubble =
-    state.chatBubble && now - state.chatBubble.createdAt <= state.chatBubble.life
-      ? {
-          text: state.chatBubble.text,
-          age: now - state.chatBubble.createdAt,
-          life: state.chatBubble.life,
-        }
-      : null;
-
   return {
     id: multiplayer.id,
     name: state.characterName,
@@ -505,11 +476,8 @@ function currentMultiplayerState() {
     facing: player.facing,
     inBoat: state.inBoat,
     meditating: state.meditating,
-    chatBubble,
     equippedWeapon: state.equippedWeapon,
-    hasSilverShield: state.hasSilverShield,
-    defense: state.defense,
-    updatedAt: now,
+    updatedAt: performance.now(),
   };
 }
 
@@ -689,61 +657,6 @@ function nearVendor() {
   if (state.mapName !== "river") return false;
   const p = playerCenter();
   return distance(p.x, p.y, vendorNpc.x + vendorNpc.w / 2, vendorNpc.y + vendorNpc.h / 2) < 78;
-}
-
-function nearAdventurer() {
-  if (state.mapName !== "river") return false;
-  const p = playerCenter();
-  return distance(p.x, p.y, adventurerNpc.x + adventurerNpc.w / 2, adventurerNpc.y + adventurerNpc.h / 2) < 78;
-}
-
-function handleCoghlanQuestKill() {
-  const quest = state.quest.coghlanCreatures;
-  if (quest.status !== "active" || state.mapName !== "coghlanDungeon") return "";
-  quest.kills = Math.min(quest.required, quest.kills + 1);
-  if (quest.kills >= quest.required) {
-    return " Quest completa: volve con Vholius.";
-  } else {
-    return ` Quest Vholius: ${quest.kills}/${quest.required}.`;
-  }
-}
-
-function talkToAdventurer() {
-  if (!nearAdventurer()) {
-    setMessage("Acercate a Vholius para hablar.");
-    return;
-  }
-
-  const quest = state.quest.coghlanCreatures;
-  if (quest.status === "inactive") {
-    const accepted = window.confirm("Vholius: Necesito que vayas al Dungeon Coghlan y derrotes 10 criaturas. Aceptas la quest?");
-    if (!accepted) {
-      setMessage("Vholius espera tu decision.");
-      return;
-    }
-    quest.status = "active";
-    quest.kills = 0;
-    setMessage("Quest aceptada: derrota 10 criaturas en Dungeon Coghlan.");
-    return;
-  }
-
-  if (quest.status === "active" && quest.kills < quest.required) {
-    setMessage(`Vholius: todavia faltan criaturas. Progreso ${quest.kills}/${quest.required}.`);
-    return;
-  }
-
-  if (quest.status === "active" && quest.kills >= quest.required) {
-    quest.status = "completed";
-    state.gold += 5000;
-    state.hasSilverShield = true;
-    state.defense = Math.max(state.defense, 7);
-    showGoldPopup(5000);
-    updateStats();
-    setMessage("Vholius te recompensa con 5000 de oro y un Escudo de Plata (+7 defensa).");
-    return;
-  }
-
-  setMessage("Vholius: buen trabajo, aventurero.");
 }
 
 function sellFishToNpc() {
@@ -1001,8 +914,7 @@ function punch() {
     state.gold += target.gold;
     target.respawnAt = now + CREATURE_RESPAWN_DELAY;
     showGoldPopup(target.gold);
-    const questMessage = handleCoghlanQuestKill();
-    setMessage(`Derrotaste a la criatura y ganaste ${target.gold} monedas.${questMessage}`);
+    setMessage(`Derrotaste a la criatura y ganaste ${target.gold} monedas.`);
   }
   updateStats();
 }
@@ -1993,15 +1905,6 @@ function drawPlayer() {
     ctx.fillRect(x + 18, y + 20, 4, 4);
   }
 
-  if (state.hasSilverShield) {
-    ctx.fillStyle = "#c9d0d6";
-    ctx.fillRect(x + 1, y + 17, 6, 10);
-    ctx.fillStyle = "#eef4f8";
-    ctx.fillRect(x + 2, y + 18, 3, 6);
-    ctx.fillStyle = "#7b858f";
-    ctx.fillRect(x + 1, y + 26, 6, 2);
-  }
-
   ctx.font = "13px Trebuchet MS, Verdana, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -2067,7 +1970,6 @@ function drawNpc() {
   drawSingleNpc(lumberjackNpc, "#7b4b2d", "#9b6841", "#57331f");
   drawSingleNpc(fisherNpc, "#6b6a3a", "#8b8848", "#4f4f2a");
   drawSingleNpc(vendorNpc, "#345f6c", "#4f8796", "#24444f");
-  drawSingleNpc(adventurerNpc, "#5f456e", "#85629a", "#3d2e49");
 }
 
 function drawCreatures() {
@@ -2140,15 +2042,6 @@ function drawRemoteCharacter(other) {
     ctx.stroke();
   }
 
-  if (other.hasSilverShield) {
-    ctx.fillStyle = "#c9d0d6";
-    ctx.fillRect(x + 1, y + 17, 6, 10);
-    ctx.fillStyle = "#eef4f8";
-    ctx.fillRect(x + 2, y + 18, 3, 6);
-    ctx.fillStyle = "#7b858f";
-    ctx.fillRect(x + 1, y + 26, 6, 2);
-  }
-
   drawRemoteName(other.name, x + 12, y + 38);
 }
 
@@ -2177,27 +2070,6 @@ function drawRemoteBoat(other) {
   drawRemoteName(other.name, other.x + 12, other.y + 42);
 }
 
-function drawRemoteMeditationSmoke(other, now) {
-  if (!other.meditating) return;
-  const cx = other.x + 12;
-  const baseY = other.y + 7;
-
-  ctx.save();
-  for (let i = 0; i < 6; i += 1) {
-    const phase = ((now / 900 + i * 0.2) % 1);
-    const drift = Math.sin(now / 260 + i * 1.7) * 9;
-    const x = cx + drift + (i - 2.5) * 2;
-    const y = baseY - phase * 38;
-    const size = 4 + phase * 8 + (i % 2) * 2;
-    const alpha = 0.42 * (1 - phase);
-    ctx.fillStyle = `rgba(184, 221, 255, ${alpha})`;
-    ctx.beginPath();
-    ctx.arc(x, y, size, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
 function drawRemoteName(name, x, y) {
   ctx.font = "13px Trebuchet MS, Verdana, sans-serif";
   ctx.textAlign = "center";
@@ -2210,15 +2082,46 @@ function drawRemoteName(name, x, y) {
   ctx.textAlign = "start";
 }
 
-function drawSpeechBubble(text, x, y, age, life) {
-  const alpha = age > life - 800 ? Math.max(0, 1 - (age - (life - 800)) / 800) : 1;
+function drawRemotePlayers() {
+  if (!multiplayer.enabled || !state.inWorld) return;
+  for (const other of multiplayer.others.values()) {
+    if (other.mapName !== state.mapName) continue;
+    if (other.inBoat) drawRemoteBoat(other);
+    else drawRemoteCharacter(other);
+  }
+}
+
+function wrapText(text, maxWidth) {
+  const words = text.split(" ");
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.slice(0, 3);
+}
+
+function drawChatBubble(now) {
+  if (!state.chatBubble) return;
+
+  const age = now - state.chatBubble.createdAt;
+  const alpha = age > 3400 ? Math.max(0, 1 - (age - 3400) / 800) : 1;
+  const x = player.x + player.w / 2;
+  const y = Math.max(18, player.y - 14);
 
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.font = "14px Trebuchet MS, Verdana, sans-serif";
   ctx.textBaseline = "top";
 
-  const lines = wrapText(text, 190);
+  const lines = wrapText(state.chatBubble.text, 190);
   const width = Math.min(220, Math.max(...lines.map((line) => ctx.measureText(line).width)) + 20);
   const height = lines.length * 17 + 12;
   const bx = Math.max(8, Math.min(canvas.width - width - 8, x - width / 2));
@@ -2244,52 +2147,6 @@ function drawSpeechBubble(text, x, y, age, life) {
     ctx.fillText(line, bx + 10, by + 7 + index * 17);
   });
   ctx.restore();
-}
-
-function drawRemoteChatBubble(other, now) {
-  if (!other.chatBubble) return;
-  const age = (other.chatBubble.age || 0) + (now - (other.updatedAt || now));
-  const life = other.chatBubble.life || 4200;
-  if (age > life) return;
-  drawSpeechBubble(other.chatBubble.text, other.x + 12, Math.max(18, other.y - 14), age, life);
-}
-
-function drawRemotePlayers() {
-  if (!multiplayer.enabled || !state.inWorld) return;
-  const now = performance.now();
-  for (const other of multiplayer.others.values()) {
-    if (other.mapName !== state.mapName) continue;
-    if (other.inBoat) drawRemoteBoat(other);
-    else drawRemoteCharacter(other);
-    drawRemoteMeditationSmoke(other, now);
-    drawRemoteChatBubble(other, now);
-  }
-}
-
-function wrapText(text, maxWidth) {
-  const words = text.split(" ");
-  const lines = [];
-  let line = "";
-  for (const word of words) {
-    const test = line ? `${line} ${word}` : word;
-    if (ctx.measureText(test).width > maxWidth && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = test;
-    }
-  }
-  if (line) lines.push(line);
-  return lines.slice(0, 3);
-}
-
-function drawChatBubble(now) {
-  if (!state.chatBubble) return;
-
-  const age = now - state.chatBubble.createdAt;
-  const x = player.x + player.w / 2;
-  const y = Math.max(18, player.y - 14);
-  drawSpeechBubble(state.chatBubble.text, x, y, age, state.chatBubble.life);
 }
 
 function drawGoldPopup(now) {
@@ -2571,14 +2428,6 @@ canvas.addEventListener("contextmenu", (event) => {
     return;
   }
 
-  if (state.mapName === "river" && pointInRect(pos.x, pos.y, adventurerNpc)) {
-    if (state.autoFishing || state.fishing) stopAutoFishing("Dejaste de pescar.");
-    if (state.autoChopping) stopAutoChopping("Dejaste de talar.");
-    stopMeditating("Dejaste de meditar.");
-    talkToAdventurer();
-    return;
-  }
-
   if (state.mapName === "river" && pointInRect(pos.x, pos.y, lumberjackNpc)) {
     if (state.autoFishing || state.fishing) stopAutoFishing("Dejaste de pescar.");
     if (state.autoChopping) stopAutoChopping("Dejaste de talar.");
@@ -2657,11 +2506,7 @@ resetGame.addEventListener("click", () => {
   state.energy = MAX_ENERGY;
   state.mana = 35;
   state.hasSword = false;
-  state.hasSilverShield = false;
-  state.defense = 0;
   state.equippedWeapon = "fists";
-  state.quest.coghlanCreatures.status = "inactive";
-  state.quest.coghlanCreatures.kills = 0;
   state.shopOpen = false;
   state.mapName = "river";
   state.inBoat = false;

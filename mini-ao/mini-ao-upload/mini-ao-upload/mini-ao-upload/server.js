@@ -111,17 +111,7 @@ const server = http.createServer(async (req, res) => {
         facing: String(player.facing || "down"),
         inBoat: Boolean(player.inBoat),
         meditating: Boolean(player.meditating),
-        chatBubble:
-          player.chatBubble && typeof player.chatBubble === "object"
-            ? {
-                text: String(player.chatBubble.text || "").slice(0, 80),
-                age: Number(player.chatBubble.age) || 0,
-                life: Number(player.chatBubble.life) || 4200,
-              }
-            : null,
         equippedWeapon: String(player.equippedWeapon || "fists"),
-        hasSilverShield: Boolean(player.hasSilverShield),
-        defense: Number(player.defense) || 0,
         updatedAt: Date.now(),
       });
       sendJson(res, { ok: true });

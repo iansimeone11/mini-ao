@@ -5,7 +5,6 @@ const stageWrap = document.querySelector(".stage-wrap");
 const fishCount = document.getElementById("fishCount");
 const goldCount = document.getElementById("goldCount");
 const woodCount = document.getElementById("woodCount");
-const defenseCount = document.getElementById("defenseCount");
 const energyText = document.getElementById("energyText");
 const energyFill = document.getElementById("energyFill");
 const manaText = document.getElementById("manaText");
@@ -201,14 +200,6 @@ const vendorNpc = {
   name: "<Vendedor>",
 };
 
-const adventurerNpc = {
-  x: 7 * TILE + 12,
-  y: 7 * TILE + 6,
-  w: 24,
-  h: 34,
-  name: "Vholius",
-};
-
 const state = {
   inWorld: false,
   characterName: "Khan",
@@ -218,16 +209,7 @@ const state = {
   energy: MAX_ENERGY,
   mana: 35,
   hasSword: false,
-  hasSilverShield: false,
-  defense: 0,
   equippedWeapon: "fists",
-  quest: {
-    coghlanCreatures: {
-      status: "inactive",
-      kills: 0,
-      required: 10,
-    },
-  },
   shopOpen: false,
   mapName: "river",
   inBoat: false,
@@ -315,7 +297,7 @@ function canMoveTo(x, y) {
   ];
   const hitsNpc = points.some(([px, py]) => {
     if (state.mapName !== "river") return false;
-    return [fisherNpc, lumberjackNpc, vendorNpc, adventurerNpc].some((npc) => {
+    return [fisherNpc, lumberjackNpc, vendorNpc].some((npc) => {
       return px >= npc.x - 4 && px <= npc.x + npc.w + 4 && py >= npc.y && py <= npc.y + npc.h + 4;
     });
   });
@@ -345,7 +327,6 @@ function updateStats() {
   fishCount.textContent = `Peces: ${state.fish}`;
   goldCount.textContent = `Oro: ${state.gold}`;
   woodCount.textContent = `Madera: ${state.wood}`;
-  defenseCount.textContent = `Defensa: ${state.defense}`;
   const energy = Math.round(state.energy);
   energyText.textContent = `Energia: ${energy}`;
   energyFill.style.width = `${energy}%`;
@@ -507,8 +488,6 @@ function currentMultiplayerState() {
     meditating: state.meditating,
     chatBubble,
     equippedWeapon: state.equippedWeapon,
-    hasSilverShield: state.hasSilverShield,
-    defense: state.defense,
     updatedAt: now,
   };
 }
@@ -689,61 +668,6 @@ function nearVendor() {
   if (state.mapName !== "river") return false;
   const p = playerCenter();
   return distance(p.x, p.y, vendorNpc.x + vendorNpc.w / 2, vendorNpc.y + vendorNpc.h / 2) < 78;
-}
-
-function nearAdventurer() {
-  if (state.mapName !== "river") return false;
-  const p = playerCenter();
-  return distance(p.x, p.y, adventurerNpc.x + adventurerNpc.w / 2, adventurerNpc.y + adventurerNpc.h / 2) < 78;
-}
-
-function handleCoghlanQuestKill() {
-  const quest = state.quest.coghlanCreatures;
-  if (quest.status !== "active" || state.mapName !== "coghlanDungeon") return "";
-  quest.kills = Math.min(quest.required, quest.kills + 1);
-  if (quest.kills >= quest.required) {
-    return " Quest completa: volve con Vholius.";
-  } else {
-    return ` Quest Vholius: ${quest.kills}/${quest.required}.`;
-  }
-}
-
-function talkToAdventurer() {
-  if (!nearAdventurer()) {
-    setMessage("Acercate a Vholius para hablar.");
-    return;
-  }
-
-  const quest = state.quest.coghlanCreatures;
-  if (quest.status === "inactive") {
-    const accepted = window.confirm("Vholius: Necesito que vayas al Dungeon Coghlan y derrotes 10 criaturas. Aceptas la quest?");
-    if (!accepted) {
-      setMessage("Vholius espera tu decision.");
-      return;
-    }
-    quest.status = "active";
-    quest.kills = 0;
-    setMessage("Quest aceptada: derrota 10 criaturas en Dungeon Coghlan.");
-    return;
-  }
-
-  if (quest.status === "active" && quest.kills < quest.required) {
-    setMessage(`Vholius: todavia faltan criaturas. Progreso ${quest.kills}/${quest.required}.`);
-    return;
-  }
-
-  if (quest.status === "active" && quest.kills >= quest.required) {
-    quest.status = "completed";
-    state.gold += 5000;
-    state.hasSilverShield = true;
-    state.defense = Math.max(state.defense, 7);
-    showGoldPopup(5000);
-    updateStats();
-    setMessage("Vholius te recompensa con 5000 de oro y un Escudo de Plata (+7 defensa).");
-    return;
-  }
-
-  setMessage("Vholius: buen trabajo, aventurero.");
 }
 
 function sellFishToNpc() {
@@ -1001,8 +925,7 @@ function punch() {
     state.gold += target.gold;
     target.respawnAt = now + CREATURE_RESPAWN_DELAY;
     showGoldPopup(target.gold);
-    const questMessage = handleCoghlanQuestKill();
-    setMessage(`Derrotaste a la criatura y ganaste ${target.gold} monedas.${questMessage}`);
+    setMessage(`Derrotaste a la criatura y ganaste ${target.gold} monedas.`);
   }
   updateStats();
 }
@@ -1993,15 +1916,6 @@ function drawPlayer() {
     ctx.fillRect(x + 18, y + 20, 4, 4);
   }
 
-  if (state.hasSilverShield) {
-    ctx.fillStyle = "#c9d0d6";
-    ctx.fillRect(x + 1, y + 17, 6, 10);
-    ctx.fillStyle = "#eef4f8";
-    ctx.fillRect(x + 2, y + 18, 3, 6);
-    ctx.fillStyle = "#7b858f";
-    ctx.fillRect(x + 1, y + 26, 6, 2);
-  }
-
   ctx.font = "13px Trebuchet MS, Verdana, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -2067,7 +1981,6 @@ function drawNpc() {
   drawSingleNpc(lumberjackNpc, "#7b4b2d", "#9b6841", "#57331f");
   drawSingleNpc(fisherNpc, "#6b6a3a", "#8b8848", "#4f4f2a");
   drawSingleNpc(vendorNpc, "#345f6c", "#4f8796", "#24444f");
-  drawSingleNpc(adventurerNpc, "#5f456e", "#85629a", "#3d2e49");
 }
 
 function drawCreatures() {
@@ -2138,15 +2051,6 @@ function drawRemoteCharacter(other) {
     ctx.moveTo(x + 22, y + 22);
     ctx.lineTo(x + 33, y + 17);
     ctx.stroke();
-  }
-
-  if (other.hasSilverShield) {
-    ctx.fillStyle = "#c9d0d6";
-    ctx.fillRect(x + 1, y + 17, 6, 10);
-    ctx.fillStyle = "#eef4f8";
-    ctx.fillRect(x + 2, y + 18, 3, 6);
-    ctx.fillStyle = "#7b858f";
-    ctx.fillRect(x + 1, y + 26, 6, 2);
   }
 
   drawRemoteName(other.name, x + 12, y + 38);
@@ -2571,14 +2475,6 @@ canvas.addEventListener("contextmenu", (event) => {
     return;
   }
 
-  if (state.mapName === "river" && pointInRect(pos.x, pos.y, adventurerNpc)) {
-    if (state.autoFishing || state.fishing) stopAutoFishing("Dejaste de pescar.");
-    if (state.autoChopping) stopAutoChopping("Dejaste de talar.");
-    stopMeditating("Dejaste de meditar.");
-    talkToAdventurer();
-    return;
-  }
-
   if (state.mapName === "river" && pointInRect(pos.x, pos.y, lumberjackNpc)) {
     if (state.autoFishing || state.fishing) stopAutoFishing("Dejaste de pescar.");
     if (state.autoChopping) stopAutoChopping("Dejaste de talar.");
@@ -2657,11 +2553,7 @@ resetGame.addEventListener("click", () => {
   state.energy = MAX_ENERGY;
   state.mana = 35;
   state.hasSword = false;
-  state.hasSilverShield = false;
-  state.defense = 0;
   state.equippedWeapon = "fists";
-  state.quest.coghlanCreatures.status = "inactive";
-  state.quest.coghlanCreatures.kills = 0;
   state.shopOpen = false;
   state.mapName = "river";
   state.inBoat = false;
