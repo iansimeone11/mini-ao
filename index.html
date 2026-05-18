@@ -34,6 +34,7 @@
           </div>
         </div>
 
+        <div class="game-content">
         <div class="stage-wrap">
           <canvas id="game" width="768" height="576" aria-label="Mapa jugable"></canvas>
           <input
@@ -47,6 +48,12 @@
             placeholder="Escribir mensaje..."
           />
           <div id="toast" class="toast" role="status" aria-live="polite">Click derecho al aguita.</div>
+          <div class="mobile-controls" aria-label="Controles moviles">
+            <div id="touchJoystick" class="touch-joystick">
+              <div id="touchStick" class="touch-stick"></div>
+            </div>
+            <button id="touchAttack" class="touch-attack" type="button">3</button>
+          </div>
           <div id="shopModal" class="shop-modal" aria-live="polite" aria-label="Tienda del vendedor">
             <div class="shop-header">
               <strong>&lt;Vendedor&gt;</strong>
@@ -60,6 +67,19 @@
               <button id="buySword" type="button">Comprar</button>
             </div>
             <p id="shopStatus">Daño equipado: puños 7-10.</p>
+          </div>
+          <div id="interactionModal" class="interaction-modal" aria-live="polite" aria-label="Interaccion">
+            <div class="interaction-frame">
+              <div class="interaction-title">Mini Ao</div>
+              <div class="interaction-body">
+                <div class="interaction-mark" aria-hidden="true"></div>
+                <p id="interactionText"></p>
+              </div>
+              <div class="interaction-actions">
+                <button id="interactionAccept" class="interaction-accept" type="button">Aceptar</button>
+                <button id="interactionCancel" class="interaction-cancel" type="button">Cancelar</button>
+              </div>
+            </div>
           </div>
           <div id="characterMenu" class="character-menu" aria-label="Seleccion de personaje">
             <div class="character-card">
@@ -79,6 +99,18 @@
               <p id="characterStatus">Khan esta listo para entrar.</p>
             </div>
           </div>
+        </div>
+
+        <aside class="side-panel" aria-label="Panel de personaje">
+          <section class="quest-panel" aria-label="Quests activas">
+            <h2>Quests activas</h2>
+            <div id="questList" class="quest-list"></div>
+          </section>
+          <section class="inventory-panel" aria-label="Inventario">
+            <h2>Inventario</h2>
+            <div id="inventoryGrid" class="inventory-grid"></div>
+          </section>
+        </aside>
         </div>
 
         <div class="bottombar">

@@ -20,6 +20,15 @@ const shopModal = document.getElementById("shopModal");
 const closeShop = document.getElementById("closeShop");
 const buySword = document.getElementById("buySword");
 const shopStatus = document.getElementById("shopStatus");
+const interactionModal = document.getElementById("interactionModal");
+const interactionText = document.getElementById("interactionText");
+const interactionAccept = document.getElementById("interactionAccept");
+const interactionCancel = document.getElementById("interactionCancel");
+const questList = document.getElementById("questList");
+const inventoryGrid = document.getElementById("inventoryGrid");
+const touchJoystick = document.getElementById("touchJoystick");
+const touchStick = document.getElementById("touchStick");
+const touchAttack = document.getElementById("touchAttack");
 const characterMenu = document.getElementById("characterMenu");
 const characterSlots = document.getElementById("characterSlots");
 const enterWorld = document.getElementById("enterWorld");
@@ -28,6 +37,9 @@ const creationPanel = document.getElementById("creationPanel");
 const characterName = document.getElementById("characterName");
 const confirmCreate = document.getElementById("confirmCreate");
 const characterStatus = document.getElementById("characterStatus");
+
+const swordAsset = new Image();
+swordAsset.src = "assets/basic-sword.png";
 
 const multiplayerChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("mini-ao-local") : null;
 const multiplayer = {
@@ -219,6 +231,7 @@ const state = {
   mana: 35,
   hasSword: false,
   hasSilverShield: false,
+  equippedShield: false,
   defense: 0,
   equippedWeapon: "fists",
   quest: {
@@ -240,12 +253,19 @@ const state = {
   treeHealth: {},
   meditating: false,
   chatting: false,
+  interactionOpen: false,
   chatBubble: null,
   goldPopup: null,
   combatPopup: null,
   punchFx: null,
   lastPunchAt: -PUNCH_COOLDOWN,
   holdingAttack: false,
+  touchMove: {
+    active: false,
+    id: null,
+    dx: 0,
+    dy: 0,
+  },
   mapTitle: null,
   line: null,
   bobbers: [],
@@ -341,10 +361,37 @@ function setMessage(text) {
   statusLine.textContent = text;
 }
 
+function showInteractionDialog(message, { acceptText = "Aceptar", cancelText = "Cancelar" } = {}) {
+  return new Promise((resolve) => {
+    state.interactionOpen = true;
+    keys.clear();
+    closeChat();
+    closeShopWindow();
+    interactionText.textContent = message;
+    interactionAccept.textContent = acceptText;
+    interactionCancel.textContent = cancelText;
+    interactionModal.classList.add("is-open");
+
+    const finish = (accepted) => {
+      interactionModal.classList.remove("is-open");
+      interactionAccept.removeEventListener("click", accept);
+      interactionCancel.removeEventListener("click", cancel);
+      state.interactionOpen = false;
+      resolve(accepted);
+    };
+    const accept = () => finish(true);
+    const cancel = () => finish(false);
+    interactionAccept.addEventListener("click", accept);
+    interactionCancel.addEventListener("click", cancel);
+    interactionAccept.focus();
+  });
+}
+
 function updateStats() {
   fishCount.textContent = `Peces: ${state.fish}`;
   goldCount.textContent = `Oro: ${state.gold}`;
   woodCount.textContent = `Madera: ${state.wood}`;
+  state.defense = state.equippedShield ? 7 : 0;
   defenseCount.textContent = `Defensa: ${state.defense}`;
   const energy = Math.round(state.energy);
   energyText.textContent = `Energia: ${energy}`;
@@ -352,6 +399,105 @@ function updateStats() {
   const mana = Math.round(state.mana);
   manaText.textContent = `Mana: ${mana}`;
   manaFill.style.width = `${mana}%`;
+  renderQuestPanel();
+  renderInventory();
+}
+
+function activeQuestEntries() {
+  const quest = state.quest.coghlanCreatures;
+  if (quest.status !== "active") return [];
+  return [
+    {
+      name: "Encargo de Vholius",
+      objective: "Derrotar criaturas en Dungeon Coghlan",
+      progress: quest.kills,
+      required: quest.required,
+    },
+  ];
+}
+
+function renderQuestPanel() {
+  if (!questList) return;
+  const quests = activeQuestEntries();
+  if (quests.length === 0) {
+    questList.innerHTML = `<div class="quest-empty">No tenes quests activas.</div>`;
+    return;
+  }
+
+  questList.innerHTML = quests
+    .map((quest) => {
+      const progress = Math.min(100, (quest.progress / quest.required) * 100);
+      return `
+        <div class="quest-entry">
+          <strong>${quest.name}</strong>
+          <span>${quest.objective}</span>
+          <span>Progreso: ${quest.progress}/${quest.required}</span>
+          <div class="quest-progress"><span style="width: ${progress}%"></span></div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function inventoryItems() {
+  const items = [];
+  if (state.hasSword) {
+    items.push({
+      id: "basicSword",
+      name: "Espada basica",
+      icon: "sword",
+      equipped: state.equippedWeapon === "basicSword",
+    });
+  }
+  if (state.equippedShield) {
+    items.push({
+      id: "silverShield",
+      name: "Escudo de Plata",
+      icon: "shield",
+      equipped: state.equippedShield,
+    });
+  }
+  return items;
+}
+
+function toggleInventoryItem(itemId) {
+  if (itemId === "basicSword" && state.hasSword) {
+    state.equippedWeapon = state.equippedWeapon === "basicSword" ? "fists" : "basicSword";
+    setMessage(state.equippedWeapon === "basicSword" ? "Equipaste la espada basica." : "Desequipaste la espada basica.");
+  }
+
+  if (itemId === "silverShield" && state.hasSilverShield) {
+    state.equippedShield = !state.equippedShield;
+    state.defense = state.equippedShield ? 7 : 0;
+    setMessage(state.equippedShield ? "Equipaste el Escudo de Plata." : "Desequipaste el Escudo de Plata.");
+  }
+
+  updateStats();
+  if (state.shopOpen) updateShopStatus();
+  sendMultiplayerState(true);
+}
+
+function renderInventory() {
+  if (!inventoryGrid) return;
+  const items = inventoryItems();
+  inventoryGrid.innerHTML = "";
+
+  for (let index = 0; index < 25; index += 1) {
+    const item = items[index];
+    const slot = document.createElement("button");
+    slot.type = "button";
+    slot.className = `inventory-slot${item ? " has-item" : ""}${item?.equipped ? " is-equipped" : ""}`;
+    slot.title = item ? `${item.name}${item.equipped ? " equipado" : ""}` : "Slot vacio";
+    if (item) {
+      slot.dataset.item = item.id;
+      slot.innerHTML =
+        item.id === "basicSword"
+          ? `<img class="item-asset sword-asset" src="assets/basic-sword.png" alt="" />`
+          : `<span class="item-icon ${item.icon}" aria-hidden="true"></span>`;
+      slot.addEventListener("dblclick", () => toggleInventoryItem(item.id));
+    }
+    inventoryGrid.appendChild(slot);
+  }
 }
 
 function characterPreviewMarkup() {
@@ -508,6 +654,7 @@ function currentMultiplayerState() {
     chatBubble,
     equippedWeapon: state.equippedWeapon,
     hasSilverShield: state.hasSilverShield,
+    equippedShield: state.equippedShield,
     defense: state.defense,
     updatedAt: now,
   };
@@ -539,9 +686,11 @@ function returnToCharacterMenu(message = "Selecciona un personaje.") {
   state.meditating = false;
   state.holdingAttack = false;
   state.chatting = false;
+  state.interactionOpen = false;
   state.shopOpen = false;
   state.line = null;
   keys.clear();
+  resetTouchMove();
   closeChat();
   closeShopWindow();
   characterMenu.classList.remove("is-hidden");
@@ -661,6 +810,48 @@ function screenToWorld(event) {
   };
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function resetTouchMove() {
+  state.touchMove.active = false;
+  state.touchMove.id = null;
+  state.touchMove.dx = 0;
+  state.touchMove.dy = 0;
+  if (touchStick) touchStick.style.transform = "translate(-50%, -50%)";
+}
+
+function updateTouchMove(event) {
+  const rect = touchJoystick.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const radius = rect.width * 0.34;
+  const rawX = event.clientX - centerX;
+  const rawY = event.clientY - centerY;
+  const length = Math.hypot(rawX, rawY);
+  const scale = length > radius ? radius / length : 1;
+  const stickX = rawX * scale;
+  const stickY = rawY * scale;
+  const threshold = radius * 0.28;
+
+  touchStick.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
+
+  if (length < threshold) {
+    state.touchMove.dx = 0;
+    state.touchMove.dy = 0;
+    return;
+  }
+
+  if (Math.abs(rawX) > Math.abs(rawY)) {
+    state.touchMove.dx = rawX > 0 ? 1 : -1;
+    state.touchMove.dy = 0;
+  } else {
+    state.touchMove.dx = 0;
+    state.touchMove.dy = rawY > 0 ? 1 : -1;
+  }
+}
+
 function distance(ax, ay, bx, by) {
   return Math.hypot(ax - bx, ay - by);
 }
@@ -708,7 +899,7 @@ function handleCoghlanQuestKill() {
   }
 }
 
-function talkToAdventurer() {
+async function talkToAdventurer() {
   if (!nearAdventurer()) {
     setMessage("Acercate a Vholius para hablar.");
     return;
@@ -716,13 +907,14 @@ function talkToAdventurer() {
 
   const quest = state.quest.coghlanCreatures;
   if (quest.status === "inactive") {
-    const accepted = window.confirm("Vholius: Necesito que vayas al Dungeon Coghlan y derrotes 10 criaturas. Aceptas la quest?");
+    const accepted = await showInteractionDialog("Vholius: Necesito que vayas al Dungeon Coghlan y derrotes 10 criaturas. Aceptas la quest?");
     if (!accepted) {
       setMessage("Vholius espera tu decision.");
       return;
     }
     quest.status = "active";
     quest.kills = 0;
+    updateStats();
     setMessage("Quest aceptada: derrota 10 criaturas en Dungeon Coghlan.");
     return;
   }
@@ -736,7 +928,8 @@ function talkToAdventurer() {
     quest.status = "completed";
     state.gold += 5000;
     state.hasSilverShield = true;
-    state.defense = Math.max(state.defense, 7);
+    state.equippedShield = true;
+    state.defense = 7;
     showGoldPopup(5000);
     updateStats();
     setMessage("Vholius te recompensa con 5000 de oro y un Escudo de Plata (+7 defensa).");
@@ -746,7 +939,7 @@ function talkToAdventurer() {
   setMessage("Vholius: buen trabajo, aventurero.");
 }
 
-function sellFishToNpc() {
+async function sellFishToNpc() {
   if (!nearNpc()) {
     setMessage("Acercate al pescador para venderle.");
     return;
@@ -757,7 +950,7 @@ function sellFishToNpc() {
     return;
   }
 
-  const confirmed = window.confirm("¿Estás seguro que deseas venderle todos los peces?");
+  const confirmed = await showInteractionDialog("Estas seguro que deseas venderle todos los peces?");
   if (!confirmed) {
     setMessage("Venta cancelada.");
     return;
@@ -771,7 +964,7 @@ function sellFishToNpc() {
   updateStats();
 }
 
-function sellWoodToNpc() {
+async function sellWoodToNpc() {
   if (!nearLumberjack()) {
     setMessage("Acercate al leñador para venderle.");
     return;
@@ -782,7 +975,7 @@ function sellWoodToNpc() {
     return;
   }
 
-  const confirmed = window.confirm("¿Estás seguro que deseas venderle toda la madera?");
+  const confirmed = await showInteractionDialog("Estas seguro que deseas venderle toda la madera?");
   if (!confirmed) {
     setMessage("Venta cancelada.");
     return;
@@ -798,8 +991,9 @@ function sellWoodToNpc() {
 
 function updateShopStatus() {
   if (state.hasSword) {
-    shopStatus.textContent = "Espada basica equipada. Daño 50-60.";
-    buySword.textContent = "Equipada";
+    shopStatus.textContent =
+      state.equippedWeapon === "basicSword" ? "Espada basica equipada. Daño 50-60." : "Espada basica en inventario.";
+    buySword.textContent = "Comprada";
     buySword.disabled = true;
   } else {
     shopStatus.textContent = "Daño equipado: puños 7-10.";
@@ -1278,17 +1472,22 @@ function update(dt, now) {
   let dx = 0;
   let dy = 0;
   if (!state.chatting) {
-    const left = keys.has("arrowleft") || keys.has("a");
-    const right = keys.has("arrowright") || keys.has("d");
-    const up = keys.has("arrowup") || keys.has("w");
-    const down = keys.has("arrowdown") || keys.has("s");
+    if (state.touchMove.dx || state.touchMove.dy) {
+      dx = state.touchMove.dx;
+      dy = state.touchMove.dy;
+    } else {
+      const left = keys.has("arrowleft") || keys.has("a");
+      const right = keys.has("arrowright") || keys.has("d");
+      const up = keys.has("arrowup") || keys.has("w");
+      const down = keys.has("arrowdown") || keys.has("s");
 
-    if (left && !right) dx = -1;
-    else if (right && !left) dx = 1;
+      if (left && !right) dx = -1;
+      else if (right && !left) dx = 1;
 
-    if (dx === 0) {
-      if (up && !down) dy = -1;
-      else if (down && !up) dy = 1;
+      if (dx === 0) {
+        if (up && !down) dy = -1;
+        else if (down && !up) dy = 1;
+      }
     }
   }
 
@@ -1923,6 +2122,57 @@ function drawBoatFront() {
   ctx.fillRect(x + 16, y + 30, 8, 2);
 }
 
+function swordPose(facing, x, y) {
+  if (facing === "left") return { x: x + 4, y: y + 21, angle: -Math.PI / 2 };
+  if (facing === "right") return { x: x + 23, y: y + 21, angle: Math.PI / 2 };
+  if (facing === "up") return { x: x + 18, y: y + 14, angle: 0 };
+  return { x: x + 20, y: y + 26, angle: Math.PI };
+}
+
+function drawBasicSwordAsset(pose) {
+  ctx.save();
+  ctx.translate(pose.x, pose.y);
+  ctx.rotate(pose.angle);
+  ctx.translate(-2, 0);
+
+  ctx.fillStyle = "#7a4a24";
+  ctx.fillRect(-2, 6, 4, 9);
+  ctx.fillStyle = "#3b2416";
+  ctx.fillRect(-2, 8, 4, 2);
+  ctx.fillRect(-2, 12, 4, 2);
+  ctx.fillStyle = "#c6cbd0";
+  ctx.fillRect(-8, 3, 16, 4);
+  ctx.fillStyle = "#eef3f6";
+  ctx.fillRect(-6, 3, 7, 2);
+  ctx.fillStyle = "#8d949a";
+  ctx.fillRect(1, 5, 5, 2);
+  ctx.fillStyle = "#8a8f96";
+  ctx.fillRect(-3, 15, 6, 4);
+
+  ctx.fillStyle = "#6f767d";
+  ctx.beginPath();
+  ctx.moveTo(-3, 4);
+  ctx.lineTo(0, -18);
+  ctx.lineTo(3, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#dfe5e9";
+  ctx.beginPath();
+  ctx.moveTo(-2, 3);
+  ctx.lineTo(0, -17);
+  ctx.lineTo(1, 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#9ea6ad";
+  ctx.beginPath();
+  ctx.moveTo(1, 3);
+  ctx.lineTo(0, -17);
+  ctx.lineTo(3, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawPlayer() {
   if (state.inBoat) return;
 
@@ -1972,25 +2222,7 @@ function drawPlayer() {
   }
 
   if (state.equippedWeapon === "basicSword") {
-    ctx.strokeStyle = "#d8d2bd";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    if (player.facing === "left") {
-      ctx.moveTo(x + 4, y + 22);
-      ctx.lineTo(x - 7, y + 17);
-    } else if (player.facing === "right") {
-      ctx.moveTo(x + 22, y + 22);
-      ctx.lineTo(x + 33, y + 17);
-    } else if (player.facing === "up") {
-      ctx.moveTo(x + 19, y + 16);
-      ctx.lineTo(x + 25, y + 4);
-    } else {
-      ctx.moveTo(x + 20, y + 22);
-      ctx.lineTo(x + 28, y + 32);
-    }
-    ctx.stroke();
-    ctx.fillStyle = "#8d6a32";
-    ctx.fillRect(x + 18, y + 20, 4, 4);
+    drawBasicSwordAsset(swordPose(player.facing, x, y));
   }
 
   if (state.hasSilverShield) {
@@ -2132,15 +2364,10 @@ function drawRemoteCharacter(other) {
   ctx.fillRect(x + 3, y + 1, 20, 6);
 
   if (other.equippedWeapon === "basicSword") {
-    ctx.strokeStyle = "#d8d2bd";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x + 22, y + 22);
-    ctx.lineTo(x + 33, y + 17);
-    ctx.stroke();
+    drawBasicSwordAsset(swordPose(other.facing || "right", x, y));
   }
 
-  if (other.hasSilverShield) {
+  if (other.equippedShield) {
     ctx.fillStyle = "#c9d0d6";
     ctx.fillRect(x + 1, y + 17, 6, 10);
     ctx.fillStyle = "#eef4f8";
@@ -2514,6 +2741,16 @@ function loop(now) {
 }
 
 window.addEventListener("keydown", (event) => {
+  if (state.interactionOpen && event.key === "Escape") {
+    event.preventDefault();
+    interactionCancel.click();
+    return;
+  }
+  if (state.interactionOpen && event.key === "Enter") {
+    event.preventDefault();
+    interactionAccept.click();
+    return;
+  }
   if (!state.inWorld) return;
   if (state.chatting) return;
   if (event.key === "Enter") {
@@ -2545,11 +2782,10 @@ window.addEventListener("keyup", (event) => {
   keys.delete(event.key.toLowerCase());
 });
 
-canvas.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
+function handleWorldInteraction(pos) {
   if (!state.inWorld) return;
   if (state.chatting) return;
-  const pos = screenToWorld(event);
+  if (state.interactionOpen) return;
 
   if (tileAt(pos.x, pos.y) === TILES.portal) {
     activatePortal();
@@ -2604,6 +2840,59 @@ canvas.addEventListener("contextmenu", (event) => {
   }
   stopMeditating("Dejaste de meditar.");
   startAutoFishing(pos.x, pos.y);
+}
+
+canvas.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  handleWorldInteraction(screenToWorld(event));
+});
+
+canvas.addEventListener("pointerup", (event) => {
+  if (event.pointerType === "mouse") return;
+  event.preventDefault();
+  handleWorldInteraction(screenToWorld(event));
+});
+
+touchJoystick.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  state.touchMove.active = true;
+  state.touchMove.id = event.pointerId;
+  touchJoystick.setPointerCapture(event.pointerId);
+  updateTouchMove(event);
+});
+
+touchJoystick.addEventListener("pointermove", (event) => {
+  if (!state.touchMove.active || state.touchMove.id !== event.pointerId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  updateTouchMove(event);
+});
+
+["pointerup", "pointercancel", "lostpointercapture"].forEach((eventName) => {
+  touchJoystick.addEventListener(eventName, (event) => {
+    if (state.touchMove.id !== null && state.touchMove.id !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    resetTouchMove();
+  });
+});
+
+touchAttack.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (!state.inWorld || state.chatting || state.interactionOpen) return;
+  state.holdingAttack = true;
+  touchAttack.setPointerCapture(event.pointerId);
+  punch();
+});
+
+["pointerup", "pointercancel", "lostpointercapture", "pointerleave"].forEach((eventName) => {
+  touchAttack.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    state.holdingAttack = false;
+  });
 });
 
 chatInput.addEventListener("keydown", (event) => {
@@ -2658,6 +2947,7 @@ resetGame.addEventListener("click", () => {
   state.mana = 35;
   state.hasSword = false;
   state.hasSilverShield = false;
+  state.equippedShield = false;
   state.defense = 0;
   state.equippedWeapon = "fists";
   state.quest.coghlanCreatures.status = "inactive";
@@ -2674,12 +2964,14 @@ resetGame.addEventListener("click", () => {
   state.treeHealth = {};
   state.meditating = false;
   state.chatting = false;
+  state.interactionOpen = false;
   state.chatBubble = null;
   state.goldPopup = null;
   state.combatPopup = null;
   state.punchFx = null;
   state.lastPunchAt = -PUNCH_COOLDOWN;
   state.holdingAttack = false;
+  resetTouchMove();
   state.characterName = characters[selectedCharacterSlot]?.name || "Khan";
   state.mapTitle = null;
   state.line = null;

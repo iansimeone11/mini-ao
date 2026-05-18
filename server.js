@@ -121,6 +121,7 @@ const server = http.createServer(async (req, res) => {
             : null,
         equippedWeapon: String(player.equippedWeapon || "fists"),
         hasSilverShield: Boolean(player.hasSilverShield),
+        equippedShield: Boolean(player.equippedShield),
         defense: Number(player.defense) || 0,
         updatedAt: Date.now(),
       });
